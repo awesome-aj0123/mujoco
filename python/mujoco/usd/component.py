@@ -16,8 +16,10 @@ from typing import List, Optional, Tuple
 
 import mujoco
 
-import mujoco.usd.utils
-import mujoco.usd.shapes as shapes_component
+# import mujoco.usd.utils as utils_component
+# import mujoco.usd.shapes as shapes_component
+import utils as utils_component
+import shapes as shapes_component
 
 import numpy as np
 
@@ -32,6 +34,13 @@ from pxr import UsdLux
 from pxr import UsdShade
 from pxr import Vt
 
+COLOR_CHANGE = {
+  "0.25098": 0.05,
+  "0.25": 0.05,
+  "0.4": 0.042,
+  "1.0": 0.8,
+  "0.499": 0.042
+}
 
 class USDMesh:
 
@@ -199,8 +208,13 @@ class USDMesh:
       # settings the bsdf shader attributes
       bsdf_shader.CreateIdAttr("UsdPreviewSurface")
 
+      rgb = [0, 0, 0]
+      rgb[0] = COLOR_CHANGE[str(self.rgba[0])] if str(self.rgba[0]) in COLOR_CHANGE else self.rgba[0]
+      rgb[1] = COLOR_CHANGE[str(self.rgba[1])] if str(self.rgba[1]) in COLOR_CHANGE else self.rgba[1]
+      rgb[2] = COLOR_CHANGE[str(self.rgba[2])] if str(self.rgba[2]) in COLOR_CHANGE else self.rgba[2]
+
       bsdf_shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(
-          tuple(self.rgba[0:3])
+          tuple(rgb)
       )
       bsdf_shader.CreateInput("opacity", Sdf.ValueTypeNames.Float).Set(
           float(self.rgba[-1])

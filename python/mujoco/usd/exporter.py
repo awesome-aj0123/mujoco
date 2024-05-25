@@ -16,8 +16,10 @@ import os
 
 import mujoco
 
-import mujoco.usd.shapes as shapes_module
-import mujoco.usd.component as component_module
+# import mujoco.usd.shapes as shapes_module
+# import mujoco.usd.component as component_module
+import shapes as shapes_module
+import component as component_module
 
 import numpy as np
 import scipy
@@ -103,6 +105,8 @@ class USDExporter:
     self.updates = 0
 
     self.geom_name2usd = {}
+
+    self.usd_cameras = {}
 
     # initializing rendering requirements
     self.renderer = mujoco.Renderer(model, height, width, max_geom)
@@ -326,39 +330,36 @@ class USDExporter:
       )
 
   def _load_cameras(self):
-    self.usd_cameras = []
-    if self.camera_names is not None:
+    if self.camera_names:
       for name in self.camera_names:
-        self.usd_cameras.append(
-            component_module.USDCamera(stage=self.stage, obj_name=name))
+        self.usd_cameras[name] = component_module.USDCamera(stage=self.stage, obj_name=name)
 
   def _update_cameras(
       self,
       data: mujoco.MjData,
       scene_option: Optional[mujoco.MjvOption] = None,
   ):
-    for i in range(len(self.usd_cameras)):
+    if self.camera_names:
+      for camera_name in self.camera_names:
+        camera = self.usd_cameras[camera_name]
 
-      camera = self.usd_cameras[i]
-      camera_name = self.camera_names[i]
+        self.renderer.update_scene(
+            data, scene_option=scene_option, camera=camera_name
+        )
 
-      self.renderer.update_scene(
-          data, scene_option=scene_option, camera=camera_name
-      )
+        avg_camera = mujoco.mjv_averageCamera(
+            self.scene.camera[0], self.scene.camera[1])
 
-      avg_camera = mujoco.mjv_averageCamera(
-          self.scene.camera[0], self.scene.camera[1])
+        forward = avg_camera.forward
+        up = avg_camera.up
+        right = np.cross(forward, up)
 
-      forward = avg_camera.forward
-      up = avg_camera.up
-      right = np.cross(forward, up)
+        R = np.eye(3)
+        R[:, 0] = right
+        R[:, 1] = up
+        R[:, 2] = -forward
 
-      R = np.eye(3)
-      R[:, 0] = right
-      R[:, 1] = up
-      R[:, 2] = -forward
-
-      camera.update(cam_pos=avg_camera.pos, cam_mat=R, frame=self.updates)
+        camera.update(cam_pos=avg_camera.pos, cam_mat=R, frame=self.updates)
 
   def add_light(
       self,
@@ -371,12 +372,12 @@ class USDExporter:
   ):
 
     if light_type == "sphere":
-      new_light = component_module.USDSphereLight(stage=self.stage, obj_name=str(objid), radius=radius)
+      new_light = component_module.USDSphereLight(stage=self.stage, obj_name=str(obj_name), radius=radius)
 
       new_light.update(pos=np.array(pos), intensity=intensity, color=color, frame=0)
     elif light_type == "dome":
       new_light = component_module.USDDomeLight(
-          stage=self.stage, obj_name=str(objid))
+          stage=self.stage, obj_name=str(obj_name))
 
       new_light.update(intensity=intensity, color=color, frame=0)
 
@@ -384,15 +385,27 @@ class USDExporter:
       self,
       pos: List[float],
       rotation_xyz: List[float],
-      obj_name: Optional[str] = "camera_1",
+      camera_name: Optional[str] = "camera_1",
   ):
     new_camera = component_module.USDCamera(
-        stage=self.stage, obj_name=str(objid))
-
+        stage=self.stage, obj_name=str(camera_name))
+    
     r = scipy.spatial.transform.Rotation.from_euler(
         "xyz", rotation_xyz, degrees=True)
     new_camera.update(cam_pos=np.array(pos), cam_mat=r.as_matrix(), frame=0)
+    self.usd_cameras[camera_name] = new_camera
 
+  def update_external_camera(
+      self,
+      camera_name: str,
+      pos: List[float],
+      rotation_xyz: List[float],
+  ):
+    camera = self.usd_cameras[camera_name]
+    r = scipy.spatial.transform.Rotation.from_euler(
+        "xyz", rotation_xyz, degrees=True)
+    camera.update(cam_pos=pos, cam_mat=r.as_matrix(), frame=self.updates)
+    
   def save_scene(self, filetype: str = "usd"):
     self.stage.SetEndTimeCode(self.frame_count)
     self.stage.Export(

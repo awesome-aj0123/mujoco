@@ -134,6 +134,7 @@ def mesh_generator(
         prim_mesh = o3d.geometry.TriangleMesh.create_cylinder(
             radius=mesh_config[shape]["radius"],
             height=mesh_config[shape]["height"],
+            resolution=150,
             create_uv_map=True,
         )
 
