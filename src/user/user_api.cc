@@ -118,7 +118,7 @@ int mjs_detachBody(mjSpec* s, mjsBody* b) {
   mjCModel* model = static_cast<mjCModel*>(s->element);
   mjCBody* body = static_cast<mjCBody*>(b->element);
   *model -= *body;
-  mjs_deleteBody(b);
+  mjs_delete(b->element);
   return 0;
 }
 
@@ -140,10 +140,10 @@ void mjs_deleteSpec(mjSpec* s) {
 
 
 
-// delete body
-void mjs_deleteBody(mjsBody* b) {
-  mjCBody* body = static_cast<mjCBody*>(b->element);
-  delete body;
+// delete object, it will call the appropriate destructor since ~mjCBase is virtual
+void mjs_delete(mjElement* element) {
+  mjCBase* object = static_cast<mjCBase*>(element);
+  delete object;
 }
 
 
@@ -429,7 +429,7 @@ mjsPlugin* mjs_addPlugin(mjSpec* s) {
 // add default to model
 mjsDefault* mjs_addDefault(mjSpec* s, const char* classname, int parentid, int* id) {
   mjCModel* modelC = static_cast<mjCModel*>(s->element);
-  *id = (int)modelC->Defaults().size();
+  *id = (int)modelC->NumDefaults();
   mjCDef* def = modelC->AddDefault(classname, parentid);
   if (def) {
     return &def->spec;
@@ -469,7 +469,7 @@ mjsDefault* mjs_findDefault(mjSpec* s, const char* classname) {
 // get default[0] from model
 mjsDefault* mjs_getSpecDefault(mjSpec* s) {
   mjCModel* modelC = static_cast<mjCModel*>(s->element);
-  mjCDef* def = modelC->Defaults()[0];
+  mjCDef* def = modelC->Defaults(0);
   if (!def) {
     return nullptr;
   }
@@ -550,6 +550,22 @@ int mjs_getId(mjElement* element) {
 void mjs_setDefault(mjElement* element, mjsDefault* defspec) {
   mjCBase* baseC = static_cast<mjCBase*>(element);
   baseC->def = static_cast<mjCDef*>(defspec->element);
+}
+
+
+
+// return first child of selected type
+mjElement* mjs_firstChild(mjsBody* body, mjtObj type) {
+  mjCBody* bodyC = static_cast<mjCBody*>(body->element);
+  return bodyC->NextChild(NULL, type);
+}
+
+
+
+// return body's next child; return NULL if child is last
+mjElement* mjs_nextChild(mjsBody* body, mjElement* child) {
+  mjCBody* bodyC = static_cast<mjCBody*>(body->element);
+  return bodyC->NextChild(child);
 }
 
 

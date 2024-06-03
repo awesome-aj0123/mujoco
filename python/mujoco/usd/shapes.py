@@ -6,7 +6,6 @@ import open3d as o3d
 
 def create_hemisphere(
     radius: float,
-    resolution: int = 20,
     theta_steps: int = 50,
     phi_steps: int = 50
 ):
@@ -28,14 +27,28 @@ def create_hemisphere(
 
     return mesh
 
+def decouple_config(config: dict):
+  decoupled_config = []
+  for key, value in config.items():
+    if key == "name":
+      continue
+    decoupled_config.append({
+      "parent_name": config["name"],
+      "name": config["name"] + "_" + key,
+      key: value.copy()
+    })
+
+  return decoupled_config
+
 def mesh_config_generator(
     name: str,
     geom_type: mujoco.mjtGeom,
-    size: np.ndarray
+    size: np.ndarray,
+    decouple: bool = False
 ):
 
     if geom_type == mujoco.mjtGeom.mjGEOM_PLANE:
-      return {
+      config = {
         "name": name,
         "box": {
           "width": size[0] * 2 if size[0] > 0 else 100,
@@ -45,7 +58,7 @@ def mesh_config_generator(
         }
       }
     elif geom_type == mujoco.mjtGeom.mjGEOM_SPHERE:
-      return {
+      config = {
         "name": name,
         "sphere": {
           "radius": float(size[0])
@@ -53,7 +66,7 @@ def mesh_config_generator(
       }
     elif geom_type == mujoco.mjtGeom.mjGEOM_CAPSULE:
       cylinder = mesh_config_generator(name, mujoco.mjtGeom.mjGEOM_CYLINDER, size)
-      return {
+      config = {
         "name": name,
         "cylinder": cylinder["cylinder"],
         "left_hemisphere": {
@@ -75,12 +88,12 @@ def mesh_config_generator(
       sphere["sphere"]["transform"] = {
         "scale": tuple(size)
       }
-      return {
+      config = {
         "name": name,
         "sphere": sphere["sphere"],
       }
     elif geom_type == mujoco.mjtGeom.mjGEOM_CYLINDER:
-      return {
+      config = {
         "name": name,
         "cylinder": {
           "radius": size[0],
@@ -88,7 +101,7 @@ def mesh_config_generator(
         }
       }
     elif geom_type == mujoco.mjtGeom.mjGEOM_BOX:
-      return {
+      config = {
         "name": name,
         "box": {
           "width": size[0] * 2,
@@ -99,9 +112,14 @@ def mesh_config_generator(
     else:
       raise NotImplemented(f"{geom_type} primitive geom type not implemented with USD integration")
 
+    if decouple:
+      config = decouple_config(config)
+
+    return config
 
 def mesh_generator(
-    mesh_config: dict
+    mesh_config: dict,
+    resolution: int = 100,
 ):
 
     assert "name" in mesh_config
@@ -110,7 +128,7 @@ def mesh_generator(
 
     for shape, config in mesh_config.items():
 
-      if shape == "name":
+      if "name" in shape:
         continue
 
       if "box" in shape:
@@ -128,19 +146,21 @@ def mesh_generator(
       elif "sphere" in shape:
         prim_mesh = o3d.geometry.TriangleMesh.create_sphere(
             radius=mesh_config[shape]["radius"],
+            resolution=resolution,
             create_uv_map=True
         )
       elif "cylinder" in shape:
         prim_mesh = o3d.geometry.TriangleMesh.create_cylinder(
             radius=mesh_config[shape]["radius"],
             height=mesh_config[shape]["height"],
+            resolution=resolution,
             create_uv_map=True,
         )
 
       if "transform" in config:
-
         if "rotate" in config["transform"]:
-          R = mesh.get_rotation_matrix_from_xyz(config["transform"]["rotate"])
+          tmp = o3d.geometry.TriangleMesh.create_coordinate_frame() # TODO: add rotation matrix code gen to utils.py
+          R = tmp.get_rotation_matrix_from_xyz(config["transform"]["rotate"])
           prim_mesh.rotate(R, center=(0, 0, 0))
         if "scale" in config["transform"]:
           prim_mesh.vertices = o3d.utility.Vector3dVector(

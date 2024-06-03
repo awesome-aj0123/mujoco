@@ -20,11 +20,11 @@ def generate_usd_trajectory(args):
 
   # step through the model for length steps
   for i in tqdm(range(args.length)):
-    mujoco.mj_step(m, d)
+    for i in range(args.steps_per_frame):
+      mujoco.mj_step(m, d)
     exp.update_scene(d)
 
   exp.save_scene(filetype=args.export_extension)
-
 
 if __name__ == "__main__":
 
@@ -54,6 +54,11 @@ if __name__ == "__main__":
                       type=str,
                       default="usd",
                       help='extension of exported file (can be usd, usda, or usdc)')
+
+  parser.add_argument('--steps_per_frame',
+                      type=int,
+                      default=1,
+                      help='number of frames to skip for each rendering step')
 
   args = parser.parse_args()
   generate_usd_trajectory(args)

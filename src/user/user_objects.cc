@@ -45,11 +45,11 @@
 #include "engine/engine_util_misc.h"
 #include "engine/engine_util_solve.h"
 #include "engine/engine_util_spatial.h"
-#include "engine/engine_vfs.h"
 #include "user/user_api.h"
 #include "user/user_cache.h"
 #include "user/user_model.h"
 #include "user/user_util.h"
+#include "user/user_vfs.h"
 
 namespace {
 namespace mju = ::mujoco::util;
@@ -70,7 +70,7 @@ static void checksize(double* size, mjtGeom type, mjCBase* object, const char* n
   else {
     for (int i=0; i<mjGEOMINFO[type]; i++) {
       if (size[i]<=0) {
-        throw mjCError(object, "size %d must be positive in geom", "", i);
+        throw mjCError(object, "size %d must be positive in geom", nullptr, i);
       }
     }
   }
@@ -557,22 +557,22 @@ int mjCBoundingVolumeHierarchy::MakeBVH(
 //------------------------- class mjCDef implementation --------------------------------------------
 
 // constructor
-mjCDef::mjCDef(void) {
+mjCDef::mjCDef() {
   name.clear();
   parentid = -1;
   childid.clear();
-  mjs_defaultJoint(&joint.spec);
-  mjs_defaultGeom(&geom.spec);
-  mjs_defaultSite(&site.spec);
-  mjs_defaultCamera(&camera.spec);
-  mjs_defaultLight(&light.spec);
-  mjs_defaultFlex(&flex.spec);
-  mjs_defaultMesh(&mesh.spec);
-  mjs_defaultMaterial(&material.spec);
-  mjs_defaultPair(&pair.spec);
-  mjs_defaultEquality(&equality.spec);
-  mjs_defaultTendon(&tendon.spec);
-  mjs_defaultActuator(&actuator.spec);
+  mjs_defaultJoint(&joint_.spec);
+  mjs_defaultGeom(&geom_.spec);
+  mjs_defaultSite(&site_.spec);
+  mjs_defaultCamera(&camera_.spec);
+  mjs_defaultLight(&light_.spec);
+  mjs_defaultFlex(&flex_.spec);
+  mjs_defaultMesh(&mesh_.spec);
+  mjs_defaultMaterial(&material_.spec);
+  mjs_defaultPair(&pair_.spec);
+  mjs_defaultEquality(&equality_.spec);
+  mjs_defaultTendon(&tendon_.spec);
+  mjs_defaultActuator(&actuator_.spec);
 
   // make sure all the pointers are local
   PointToLocal();
@@ -592,12 +592,12 @@ void mjCDef::Compile(const mjCModel* model) {
   CopyFromSpec();
 
   // enforce length of all default userdata arrays
-  joint.userdata_.resize(model->nuser_jnt);
-  geom.userdata_.resize(model->nuser_geom);
-  site.userdata_.resize(model->nuser_site);
-  camera.userdata_.resize(model->nuser_cam);
-  tendon.userdata_.resize(model->nuser_tendon);
-  actuator.userdata_.resize(model->nuser_actuator);
+  joint_.userdata_.resize(model->nuser_jnt);
+  geom_.userdata_.resize(model->nuser_geom);
+  site_.userdata_.resize(model->nuser_site);
+  camera_.userdata_.resize(model->nuser_cam);
+  tendon_.userdata_.resize(model->nuser_tendon);
+  actuator_.userdata_.resize(model->nuser_actuator);
 }
 
 
@@ -608,18 +608,18 @@ mjCDef& mjCDef::operator=(const mjCDef& other) {
     name = other.name;
     parentid = other.parentid;
     childid = other.childid;
-    joint = other.joint;
-    geom = other.geom;
-    site = other.site;
-    camera = other.camera;
-    light = other.light;
-    flex = other.flex;
-    mesh = other.mesh;
-    material = other.material;
-    pair = other.pair;
-    equality = other.equality;
-    tendon = other.tendon;
-    actuator = other.actuator;
+    joint_ = other.joint_;
+    geom_ = other.geom_;
+    site_ = other.site_;
+    camera_ = other.camera_;
+    light_ = other.light_;
+    flex_ = other.flex_;
+    mesh_ = other.mesh_;
+    material_ = other.material_;
+    pair_ = other.pair_;
+    equality_ = other.equality_;
+    tendon_ = other.tendon_;
+    actuator_ = other.actuator_;
   }
   PointToLocal();
   return *this;
@@ -628,49 +628,49 @@ mjCDef& mjCDef::operator=(const mjCDef& other) {
 
 
 void mjCDef::PointToLocal() {
-  joint.PointToLocal();
-  geom.PointToLocal();
-  site.PointToLocal();
-  camera.PointToLocal();
-  light.PointToLocal();
-  flex.PointToLocal();
-  mesh.PointToLocal();
-  material.PointToLocal();
-  pair.PointToLocal();
-  equality.PointToLocal();
-  tendon.PointToLocal();
-  actuator.PointToLocal();
+  joint_.PointToLocal();
+  geom_.PointToLocal();
+  site_.PointToLocal();
+  camera_.PointToLocal();
+  light_.PointToLocal();
+  flex_.PointToLocal();
+  mesh_.PointToLocal();
+  material_.PointToLocal();
+  pair_.PointToLocal();
+  equality_.PointToLocal();
+  tendon_.PointToLocal();
+  actuator_.PointToLocal();
   spec.element = static_cast<mjElement*>(this);
   spec.name = (mjString)&name;
-  spec.joint = &joint.spec;
-  spec.geom = &geom.spec;
-  spec.site = &site.spec;
-  spec.camera = &camera.spec;
-  spec.light = &light.spec;
-  spec.flex = &flex.spec;
-  spec.mesh = &mesh.spec;
-  spec.material = &material.spec;
-  spec.pair = &pair.spec;
-  spec.equality = &equality.spec;
-  spec.tendon = &tendon.spec;
-  spec.actuator = &actuator.spec;
+  spec.joint = &joint_.spec;
+  spec.geom = &geom_.spec;
+  spec.site = &site_.spec;
+  spec.camera = &camera_.spec;
+  spec.light = &light_.spec;
+  spec.flex = &flex_.spec;
+  spec.mesh = &mesh_.spec;
+  spec.material = &material_.spec;
+  spec.pair = &pair_.spec;
+  spec.equality = &equality_.spec;
+  spec.tendon = &tendon_.spec;
+  spec.actuator = &actuator_.spec;
 }
 
 
 
 void mjCDef::CopyFromSpec() {
-  joint.CopyFromSpec();
-  geom.CopyFromSpec();
-  site.CopyFromSpec();
-  camera.CopyFromSpec();
-  light.CopyFromSpec();
-  flex.CopyFromSpec();
-  mesh.CopyFromSpec();
-  material.CopyFromSpec();
-  pair.CopyFromSpec();
-  equality.CopyFromSpec();
-  tendon.CopyFromSpec();
-  actuator.CopyFromSpec();
+  joint_.CopyFromSpec();
+  geom_.CopyFromSpec();
+  site_.CopyFromSpec();
+  camera_.CopyFromSpec();
+  light_.CopyFromSpec();
+  flex_.CopyFromSpec();
+  mesh_.CopyFromSpec();
+  material_.CopyFromSpec();
+  pair_.CopyFromSpec();
+  equality_.CopyFromSpec();
+  tendon_.CopyFromSpec();
+  actuator_.CopyFromSpec();
 }
 
 
@@ -1255,6 +1255,53 @@ mjCBase* mjCBody::FindObject(mjtObj type, string _name, bool recursive) {
 
 
 
+template <class T>
+static mjElement* GetNext(std::vector<T*>& list, mjElement* child) {
+  for (unsigned int i = 0; i < list.size()-1; i++) {
+    if (list[i]->spec.element == child) {
+      return list[i+1]->spec.element;
+    }
+  }
+  return nullptr;
+}
+
+
+
+// get next child of given type
+mjElement* mjCBody::NextChild(mjElement* child, mjtObj type) {
+  if (type == mjOBJ_UNKNOWN) {
+    if (!child) {
+      throw mjCError(this, "child type must be specified if no child element is given");
+    } else {
+      type = child->elemtype;
+    }
+  } else if (child && child->elemtype != type) {
+    throw mjCError(this, "child element is not of requested type");
+  }
+
+  switch (type) {
+    case mjOBJ_BODY:
+    case mjOBJ_XBODY:
+      return child ? GetNext(bodies, child) : bodies[0];
+    case mjOBJ_JOINT:
+      return child ? GetNext(joints, child) : joints[0];
+    case mjOBJ_GEOM:
+      return child ? GetNext(geoms, child) : geoms[0];
+    case mjOBJ_SITE:
+      return child ? GetNext(sites, child) : sites[0];
+    case mjOBJ_CAMERA:
+      return child ? GetNext(cameras, child) : cameras[0];
+    case mjOBJ_LIGHT:
+      return child ? GetNext(lights, child) : lights[0];
+    case mjOBJ_FRAME:
+      return child ? GetNext(frames, child) : frames[0];
+    default:
+      return nullptr;
+  }
+}
+
+
+
 // compute geom inertial frame: ipos, iquat, mass, inertia
 void mjCBody::GeomFrame(void) {
   int sz;
@@ -1674,12 +1721,12 @@ mjCJoint::mjCJoint(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->joint;
+    *this = _def->Joint();
   }
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 
   // point to local
   PointToLocal();
@@ -1878,12 +1925,12 @@ mjCGeom::mjCGeom(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->geom;
+    *this = _def->Geom();
   }
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 
   // point to local
   PointToLocal();
@@ -1964,7 +2011,7 @@ void mjCGeom::NameSpace(const mjCModel* m) {
 
 
 // compute geom volume
-double mjCGeom::GetVolume(void) {
+double mjCGeom::GetVolume() const {
   double height;
 
   // get from mesh
@@ -2512,7 +2559,7 @@ mjCSite::mjCSite(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->site;
+    *this = _def->Site();
   }
 
   // point to local
@@ -2523,7 +2570,7 @@ mjCSite::mjCSite(mjCModel* _model, mjCDef* _def) {
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 }
 
 
@@ -2664,12 +2711,12 @@ mjCCamera::mjCCamera(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->camera;
+    *this = _def->Camera();
   }
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 
   // point to local
   PointToLocal();
@@ -2818,12 +2865,12 @@ mjCLight::mjCLight(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->light;
+    *this = _def->Light();
   }
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 
   PointToLocal();
   CopyFromSpec();
@@ -3855,12 +3902,12 @@ mjCMaterial::mjCMaterial(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->material;
+    *this = _def->Material();
   }
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 
   // point to local
   PointToLocal();
@@ -3943,12 +3990,12 @@ mjCPair::mjCPair(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->pair;
+    *this = _def->Pair();
   }
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 
   // point to local
   PointToLocal();
@@ -4304,12 +4351,12 @@ mjCEquality::mjCEquality(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->equality;
+    *this = _def->Equality();
   }
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 
   // point to local
   PointToLocal();
@@ -4466,12 +4513,12 @@ mjCTendon::mjCTendon(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->tendon;
+    *this = _def->Tendon();
   }
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 
   // point to local
   PointToLocal();
@@ -4629,19 +4676,18 @@ void mjCTendon::WrapPulley(double divisor, std::string_view info) {
 
 
 // get number of wraps
-int mjCTendon::NumWraps(void) {
+int mjCTendon::NumWraps() const {
   return (int)path.size();
 }
 
 
 
 // get pointer to specified wrap
-mjCWrap* mjCTendon::GetWrap(int id) {
-  if (id>=0 && id<(int)path.size()) {
-    return path[id];
-  } else {
-    return 0;
+const mjCWrap* mjCTendon::GetWrap(int i) const {
+  if (i >= 0 && i < (int)path.size()) {
+    return path[i];
   }
+  return nullptr;
 }
 
 
@@ -4945,12 +4991,12 @@ mjCActuator::mjCActuator(mjCModel* _model, mjCDef* _def) {
 
   // reset to default if given
   if (_def) {
-    *this = _def->actuator;
+    *this = _def->Actuator();
   }
 
   // set model, def
   model = _model;
-  def = (_def ? _def : (_model ? _model->Defaults()[0] : 0));
+  def = (_def ? _def : (_model ? _model->Defaults(0) : 0));
 
   // in case this actuator is not compiled
   CopyFromSpec();
@@ -5126,7 +5172,7 @@ void mjCActuator::Compile(void) {
       gainprm[0] == -biasprm[1] && inheritrange > 0) {
     // semantic of actuator is the same as transmission, inheritrange is applicable
     double* range;
-    if (dyntype == mjDYN_NONE) {
+    if (dyntype == mjDYN_NONE || dyntype == mjDYN_FILTEREXACT) {
       // position actuator
       range = ctrlrange;
     } else if (dyntype == mjDYN_INTEGRATOR) {
@@ -5388,7 +5434,6 @@ void mjCSensor::ResolveReferences(const mjCModel* m) {
       ((mjCGeom*)obj)->SetNotVisual();
     }
 
-    // get sensorized object id
   } else if (type != mjSENS_CLOCK && type != mjSENS_PLUGIN && type != mjSENS_USER) {
     throw mjCError(this, "invalid type in sensor");
   }
@@ -5402,7 +5447,7 @@ void mjCSensor::ResolveReferences(const mjCModel* m) {
 
     // find name
     if (!ref) {
-      throw mjCError(this, "unrecognized name '%s' of reference frame object", refname_.c_str());
+      throw mjCError(this, "unrecognized name '%s' of object", refname_.c_str());
     }
 
     // must be attached to object with spatial frame
@@ -5460,7 +5505,7 @@ void mjCSensor::Compile(void) {
   case mjSENS_CAMPROJECTION:
     // must be attached to site
     if (objtype!=mjOBJ_SITE) {
-      throw mjCError(this, "sensor must be attached to site: sensor");
+      throw mjCError(this, "sensor must be attached to site");
     }
 
     // set dim and datatype
@@ -5498,7 +5543,7 @@ void mjCSensor::Compile(void) {
   case mjSENS_JOINTACTFRC:
     // must be attached to joint
     if (objtype!=mjOBJ_JOINT) {
-      throw mjCError(this, "sensor must be attached to joint: sensor");
+      throw mjCError(this, "sensor must be attached to joint");
     }
 
     // make sure joint is slide or hinge
@@ -5522,7 +5567,7 @@ void mjCSensor::Compile(void) {
   case mjSENS_TENDONVEL:
     // must be attached to tendon
     if (objtype!=mjOBJ_TENDON) {
-      throw mjCError(this, "sensor must be attached to tendon: sensor");
+      throw mjCError(this, "sensor must be attached to tendon");
     }
 
     // set
@@ -5540,7 +5585,7 @@ void mjCSensor::Compile(void) {
   case mjSENS_ACTUATORFRC:
     // must be attached to actuator
     if (objtype!=mjOBJ_ACTUATOR) {
-      throw mjCError(this, "sensor must be attached to actuator: sensor");
+      throw mjCError(this, "sensor must be attached to actuator");
     }
 
     // set
@@ -5559,7 +5604,7 @@ void mjCSensor::Compile(void) {
   case mjSENS_BALLANGVEL:
     // must be attached to joint
     if (objtype!=mjOBJ_JOINT) {
-      throw mjCError(this, "sensor must be attached to joint: sensor");
+      throw mjCError(this, "sensor must be attached to joint");
     }
 
     // make sure joint is ball
@@ -5584,7 +5629,7 @@ void mjCSensor::Compile(void) {
   case mjSENS_JOINTLIMITFRC:
     // must be attached to joint
     if (objtype!=mjOBJ_JOINT) {
-      throw mjCError(this, "sensor must be attached to joint: sensor");
+      throw mjCError(this, "sensor must be attached to joint");
     }
 
     // make sure joint has limit
@@ -5609,7 +5654,7 @@ void mjCSensor::Compile(void) {
   case mjSENS_TENDONLIMITFRC:
     // must be attached to tendon
     if (objtype!=mjOBJ_TENDON) {
-      throw mjCError(this, "sensor must be attached to tendon: sensor");
+      throw mjCError(this, "sensor must be attached to tendon");
     }
 
     // make sure tendon has limit
@@ -5675,7 +5720,7 @@ void mjCSensor::Compile(void) {
   case mjSENS_SUBTREEANGMOM:
     // must be attached to body
     if (objtype!=mjOBJ_BODY) {
-      throw mjCError(this, "sensor must be attached to body: sensor");
+      throw mjCError(this, "sensor must be attached to body");
     }
 
     // set
@@ -5685,6 +5730,34 @@ void mjCSensor::Compile(void) {
       needstage = mjSTAGE_POS;
     } else {
       needstage = mjSTAGE_VEL;
+    }
+    break;
+
+  case mjSENS_GEOMDIST:
+  case mjSENS_GEOMNORMAL:
+  case mjSENS_GEOMFROMTO:
+    // must be attached to body or geom
+    if ((objtype!=mjOBJ_BODY && objtype!=mjOBJ_GEOM) ||
+        (reftype!=mjOBJ_BODY && reftype!=mjOBJ_GEOM)) {
+      throw mjCError(this, "sensor must be attached to body or geom");
+    }
+
+    // objects must be different
+    if (objtype == reftype && obj == ref) {
+      throw mjCError(this, "1st body/geom must be different from 2nd body/geom");
+    }
+
+    // set
+    needstage = mjSTAGE_POS;
+    if (type==mjSENS_GEOMDIST) {
+      dim = 1;
+      datatype = mjDATATYPE_POSITIVE;
+    } else if (type==mjSENS_GEOMNORMAL) {
+      dim = 3;
+      datatype = mjDATATYPE_AXIS;
+    } else {
+      dim = 6;
+      datatype = mjDATATYPE_REAL;
     }
     break;
 
@@ -5705,7 +5778,7 @@ void mjCSensor::Compile(void) {
       throw mjCError(this,
                      "datatype AXIS requires dim=3 in sensor");
     }
-    if (datatype==mjDATATYPE_QUATERNION && dim!=4) {
+    if (datatype==mjDATATYPE_QUATERNION && dim != 4) {
       throw mjCError(this, "datatype QUATERNION requires dim=4 in sensor");
     }
     break;
@@ -5737,7 +5810,8 @@ void mjCSensor::Compile(void) {
   }
 
   // check cutoff for incompatible data types
-  if (cutoff>0 && (datatype==mjDATATYPE_AXIS || datatype==mjDATATYPE_QUATERNION)) {
+  if (cutoff > 0 && (datatype == mjDATATYPE_QUATERNION ||
+                     (datatype == mjDATATYPE_AXIS && type != mjSENS_GEOMNORMAL))) {
     throw mjCError(this, "cutoff applied to axis or quaternion datatype in sensor");
   }
 }

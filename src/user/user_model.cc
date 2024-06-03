@@ -132,6 +132,7 @@ mjCModel::mjCModel() {
 
 
 mjCModel::mjCModel(const mjCModel& other) {
+  CreateObjectLists();
   *this = other;
 }
 
@@ -206,8 +207,19 @@ static void resetlist(std::vector<T*>& list) {
 
 mjCModel& mjCModel::operator+=(const mjCModel& other) {
   // create global lists
-  MakeLists(bodies_[0]);
-  CreateObjectLists();
+  mjCBody *world = bodies_[0];
+  if (compiled) {
+    resetlist(bodies_);
+    resetlist(joints_);
+    resetlist(geoms_);
+    resetlist(sites_);
+    resetlist(cameras_);
+    resetlist(lights_);
+    resetlist(frames_);
+    world->id = 0;
+    bodies_.push_back(world);
+  }
+  MakeLists(world);
   ProcessLists(/*checkrepeat=*/false);
 
   // copy all elements not in the tree
@@ -264,9 +276,8 @@ mjCModel& mjCModel::operator+=(const mjCModel& other) {
     lights_[i]->def= defaults_[def_map[other.lights_[i]->def]];
   }
 
-  // restore to the same state as other
+  // restore to the original state
   if (!compiled) {
-    mjCBody *world = bodies_[0];
     resetlist(bodies_);
     resetlist(joints_);
     resetlist(geoms_);
@@ -317,16 +328,30 @@ void mjCModel::RemoveFromList(std::vector<T*>& list, const mjCModel& other) {
 
 mjCModel& mjCModel::operator-=(const mjCBody& subtree) {
   mjCModel oldmodel(*this);
-  oldmodel.MakeLists(oldmodel.bodies_[0]);
-  oldmodel.CreateObjectLists();
-  oldmodel.ProcessLists(/*checkrepeat=*/false);
+
+  // create global lists in the old model if not compiled
+  if (!oldmodel.IsCompiled()) {
+    oldmodel.MakeLists(oldmodel.bodies_[0]);
+    oldmodel.ProcessLists(/*checkrepeat=*/false);
+  }
 
   // remove body from tree
-  *bodies_[0] -= subtree;
+  mjCBody* world = bodies_[0];
+  *world -= subtree;
 
   // create global lists
-  MakeLists(bodies_[0]);
-  CreateObjectLists();
+  if (compiled) {
+    resetlist(bodies_);
+    resetlist(joints_);
+    resetlist(geoms_);
+    resetlist(sites_);
+    resetlist(cameras_);
+    resetlist(lights_);
+    resetlist(frames_);
+    world->id = 0;
+    bodies_.push_back(world);
+  }
+  MakeLists(world);
   ProcessLists(/*checkrepeat=*/false);
 
   // check if we have to remove anything else
@@ -337,9 +362,8 @@ mjCModel& mjCModel::operator-=(const mjCBody& subtree) {
   RemoveFromList(actuators_, oldmodel);
   RemoveFromList(sensors_, oldmodel);
 
-  // restore to the same state as before call
+  // restore to the original state
   if (!compiled) {
-    mjCBody* world = bodies_[0];
     resetlist(bodies_);
     resetlist(joints_);
     resetlist(geoms_);
@@ -527,6 +551,7 @@ void mjCModel::Clear() {
   sites_.clear();
   cameras_.clear();
   lights_.clear();
+  frames_.clear();
 
   // internal variables
   hasImplicitPluginElem = false;
@@ -3278,16 +3303,17 @@ void mjCModel::TryCompile(mjModel*& m, mjData*& d, const mjVFS* vfs) {
   }
 
   // create low-level model
-  m = mj_makeModel(nq, nv, nu, na, nbody, nbvh, nbvhstatic, nbvhdynamic, njnt, ngeom, nsite,
-                   ncam, nlight, nflex, nflexvert, nflexedge, nflexelem,
-                   nflexelemdata, nflexshelldata, nflexevpair, nflextexcoord,
-                   nmesh, nmeshvert, nmeshnormal, nmeshtexcoord, nmeshface, nmeshgraph,
-                   nskin, nskinvert, nskintexvert, nskinface, nskinbone, nskinbonevert,
-                   nhfield, nhfielddata, ntex, ntexdata, nmat, npair, nexclude,
-                   neq, ntendon, nwrap, nsensor, nnumeric, nnumericdata, ntext, ntextdata,
-                   ntuple, ntupledata, nkey, nmocap, nplugin, npluginattr,
-                   nuser_body, nuser_jnt, nuser_geom, nuser_site, nuser_cam,
-                   nuser_tendon, nuser_actuator, nuser_sensor, nnames, npaths);
+  mj_makeModel(&m,
+               nq, nv, nu, na, nbody, nbvh, nbvhstatic, nbvhdynamic, njnt, ngeom, nsite,
+               ncam, nlight, nflex, nflexvert, nflexedge, nflexelem,
+               nflexelemdata, nflexshelldata, nflexevpair, nflextexcoord,
+               nmesh, nmeshvert, nmeshnormal, nmeshtexcoord, nmeshface, nmeshgraph,
+               nskin, nskinvert, nskintexvert, nskinface, nskinbone, nskinbonevert,
+               nhfield, nhfielddata, ntex, ntexdata, nmat, npair, nexclude,
+               neq, ntendon, nwrap, nsensor, nnumeric, nnumericdata, ntext, ntextdata,
+               ntuple, ntupledata, nkey, nmocap, nplugin, npluginattr,
+               nuser_body, nuser_jnt, nuser_geom, nuser_site, nuser_cam,
+               nuser_tendon, nuser_actuator, nuser_sensor, nnames, npaths);
   if (!m) {
     throw mjCError(0, "could not create mjModel");
   }
@@ -3439,7 +3465,7 @@ void mjCModel::TryCompile(mjModel*& m, mjData*& d, const mjVFS* vfs) {
   // create data
   int disableflags = m->opt.disableflags;
   m->opt.disableflags |= mjDSBL_CONTACT;
-  d = mj_makeRawData(m);
+  mj_makeRawData(&d, m);
   if (!d) {
     mj_deleteModel(m);
     throw mjCError(0, "could not create mjData");
