@@ -17,17 +17,11 @@ import os
 import mujoco
 from mujoco import _structs, _enums, _functions
 
-# import mujoco.usd.shapes as shapes_module
-# import mujoco.usd.objects as object_module
-# import mujoco.usd.lights as light_module
-# import mujoco.usd.camera as camera_module
-# import mujoco.usd.utils as utils_module
-
-import shapes as shapes_module
-import objects as object_module
-import lights as light_module
-import camera as camera_module
-import utils as utils_module
+import mujoco.usd.shapes as shapes_module
+import mujoco.usd.objects as object_module
+import mujoco.usd.lights as light_module
+import mujoco.usd.camera as camera_module
+import mujoco.usd.utils as utils_module
 
 import numpy as np
 import scipy

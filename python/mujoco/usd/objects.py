@@ -19,11 +19,8 @@ import pprint
 
 import mujoco
 
-# import mujoco.usd.utils as utils_module
-# import mujoco.usd.shapes as shapes_module
-
-import utils as utils_module
-import shapes as shapes_module
+import mujoco.usd.utils as utils_module
+import mujoco.usd.shapes as shapes_module
 
 import numpy as np
 
